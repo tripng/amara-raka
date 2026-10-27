@@ -1,0 +1,2 @@
+# Placeholder agar direktori data/ ada di VCS.
+# File wishes.db dibuat runtime oleh api/config.php (lihat .gitignore).

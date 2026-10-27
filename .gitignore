@@ -1,0 +1,6 @@
+# SQLite database — runtime-generated, JANGAN dicommit
+# (tabel/wishes.db dibuat otomatis oleh api/config.php pada permintaan pertama)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
