@@ -1,0 +1,13 @@
+{
+  "extends": ["html-validate:recommended"],
+  "options": {
+    "cache": true
+  },
+  "rules": {
+    "attr-case": "error",
+    "element-case": "error",
+    "no-dup-class": "warn",
+    "no-dup-id": "warn",
+    "unique-title": "warn"
+  }
+}
