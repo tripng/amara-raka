@@ -1213,9 +1213,7 @@ const SEED = [
   { n: 'Salsa & Bimo',    h: true,  t: 'Akhirnya! Selamat menempuh hidup baru — semoga langgeng sampai kakek-nenek.',        ts: Date.now() - 36e5 * 26 },
   { n: 'Rani Puspita',    h: false, t: 'Barakallahu lakuma wa baraka alaikuma. Bahagia selalu untuk kalian berdua.',         ts: Date.now() - 36e5 * 49 }
 ];
-let wishes;
-try { wishes = JSON.parse(localStorage.getItem('ar-wishes') || 'null') || []; } catch(e){ wishes = []; }
-if (!wishes.length) wishes = SEED.slice();
+let wishes = [];
 
 function timeAgo(ts){
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -1237,8 +1235,27 @@ function renderWish(w){
   return el;
 }
 function updateCount(){ wishCount.textContent = '· ' + wishes.length + ' ucapan'; }
-wishes.forEach(w => wishList.appendChild(renderWish(w)));
-updateCount();
+function renderWishes(){
+  wishList.textContent = '';
+  wishes.forEach(w => wishList.appendChild(renderWish(w)));
+  updateCount();
+}
+
+async function loadWishes(){
+  try {
+    const res = await fetch('/api/list_wishes.php', {cache: 'no-store'});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const arr = await res.json();
+    if (Array.isArray(arr)) wishes = arr;
+  } catch(err){
+    // fallback: localStorage (perilaku asal) + SEED
+    try { wishes = JSON.parse(localStorage.getItem('ar-wishes') || 'null') || []; } catch(e){ wishes = []; }
+    if (!wishes.length) wishes = SEED.slice();
+  }
+  renderWishes();
+}
+
+loadWishes();
 
 form.addEventListener('submit', e => {
   e.preventDefault();
@@ -1246,27 +1263,41 @@ form.addEventListener('submit', e => {
   let ok = true;
   if (name.length < 2){ fName.classList.add('err'); ok = false; }
   if (!ok){ toast('Mohon lengkapi data yang belum terisi.', 'err'); return; }
+  const r = form.querySelector('input[type="radio"]:checked');
+  const w = {
+    n: name,
+    h: r ? r.value === 'ya' : true,
+    t: inpMsg.value.trim() || 'Selamat menempuh hidup baru!',
+    ts: Date.now()
+  };
   btnSubmit.disabled = true;
   btnLabel.textContent = 'Mengirim…';
-  setTimeout(() => {
-    const w = {
-      n: name,
-      h: form.hadir.value === 'ya',
-      t: inpMsg.value.trim() || 'Selamat menempuh hidup baru!',
-      ts: Date.now()
-    };
+  (async () => {
+    try {
+      const res = await fetch('/api/submit_rsvp.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({ inpName: w.n, h: w.h ? 'ya' : 'tidak', inpMsg: w.t, ts: String(w.ts) })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.msg || 'gagal menyimpan');
+    } catch(err){
+      // fallback: localStorage (perilaku asal, saat offline/server mati)
+      try { localStorage.setItem('ar-wishes', JSON.stringify(wishes)); } catch(e){}
+    }
+    // tampilkan di klien (server sudah menerima; localStorage dipakai mirror/cache)
     wishes.unshift(w);
-    try { localStorage.setItem('ar-wishes', JSON.stringify(wishes)); } catch(err){}
+    try { localStorage.setItem('ar-wishes', JSON.stringify(wishes)); } catch(e){}
     wishList.prepend(renderWish(w));
     updateCount();
     form.reset();
-    form.hadir.value = 'ya';
     guests = 1; updateStepper();
     btnSubmit.disabled = false;
     btnLabel.textContent = 'Kirim Konfirmasi';
     toast('Terima kasih! Konfirmasi Anda telah terkirim.');
     wishList.scrollTop = 0;
-  }, 900);
+  })();
 });
 
 /* ============ SALIN KE PAPAN KLIP ============ */
